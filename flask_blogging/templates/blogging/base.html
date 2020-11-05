@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
+
+    {% if title %}
+        <title>Flask Blog - {{ title }}</title>
+    {% else %}
+        <title>Flask Blog</title>
+    {% endif %}
+</head>
+<head lang="en">
+    <meta charset="UTF-8">
+    {% block meta %}
+    {% endblock meta %}
+    {% block style %}
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.min.css"  rel="stylesheet"/>
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='main.css') }}">
+    <style>
+        body { padding-top: 80px;}
+    </style>
+    {% endblock style %}
+    {% block extrastyle %}
+    {% endblock extrastyle %}
+    <title>
+        {% block title %}
+        {% endblock title %}
+    </title>
+</head>
+<body>
+ <header class="site-header">
+
+      <nav class="navbar navbar-expand-md navbar-dark bg-steel navbar-fixed-top ">
+        <div class="container">
+          <a class="navbar-brand mr-4" href="/">Flask Blog</a>
+          <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarToggle" aria-controls="navbarToggle" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbarToggle">
+            <div class="navbar-nav mr-auto">
+              <a class="nav-item nav-link" href="/">Home</a>
+              <a class="nav-item nav-link" href="/about">About</a>
+            </div>
+          </div>
+                 <!-- Navbar Right Side -->
+            <div class="navbar-nav">
+              <a class="nav-item nav-link" href="/login">Login</a>
+              <a class="nav-item nav-link" href="/register">Register</a>
+            </div>
+        </div>
+      </nav>
+    </header>
+
+    <!-- /container -->
+    <!-- navbar header -->
+
+
+
+
+
+
+
+
+
+
+    <!-- main content -->
+     <div class="container">
+         {% block message %}
+         {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="row">
+                    <div class="col-md-6 col-md-offset-3">
+                    <div id="alert_div" class="alert alert-{{category}} alert-dismissible" role="alert">
+                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                        {{ message }}
+                    </div>
+                    </div>
+                 </div>
+                {% endfor %}
+            {% endif %}
+         {% endwith %}
+
+         {% endblock %}
+         {% block main %}
+         {% endblock main %}
+         {% block extramain %}
+         {% endblock extramain %}
+     </div>
+    {% include "blogging/analytics.html" %}
+    {% block js %}
+    <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/js/bootstrap.min.js"></script>
+    <script type="text/x-mathjax-config">
+          MathJax.Hub.Config({
+          "HTML-CSS": {
+          styles: {
+          ".MathJax .mo, .MathJax .mi": {color: "black ! important"}}
+          },
+          tex2jax: {inlineMath: [['$','$'], ['\\\\(','\\\\)']],processEscapes: true}
+          });
+    </script>
+
+    <script>
+        $(document).ready(function(){
+            $("#alert_div").fadeTo(3000, 500).slideUp(500, function(){
+               $("#alert_div").slideUp(500);
+                });
+        })
+    </script>
+
+    {% endblock js %}
+    {% block extrajs %}
+    {% endblock extrajs %}
+</body>
+</html>
