@@ -10,6 +10,9 @@ from sqlalchemy.ext.automap import automap_base
 import datetime
 from .storage import Storage
 from .signals import sqla_initialized
+from flask_login import LoginManager, UserMixin, login_user
+
+
 
 this = sys.modules[__name__]
 this.Post = None
@@ -69,7 +72,7 @@ class SQLAStorage(Storage):
         self._create_all_tables()
 
         # automap base and restrict to the required tables here.
-        table_suffix = ['post', 'tag', 'user_posts', 'tag_posts']
+        table_suffix = ['post', 'tag', 'user_posts', 'tag_posts', 'users']
         table_names = [self._table_name(t) for t in table_suffix]
         self._metadata.create_all(bind=self._engine, tables=self.all_tables)
         meta = sqla.MetaData()
@@ -119,9 +122,13 @@ class SQLAStorage(Storage):
         return self._user_posts_table
 
     @property
+    def users_table(self):
+        return self._users_table
+
+    @property
     def all_tables(self):
         return [self._post_table, self._tag_table,
-                self._user_posts_table, self._tag_posts_table]
+                self._user_posts_table, self._tag_posts_table, self._users_table]
 
     @property
     def engine(self):
@@ -522,6 +529,7 @@ class SQLAStorage(Storage):
         self._create_tag_table()
         self._create_tag_posts_table()
         self._create_user_posts_table()
+        self._create_user_table()
 
     def _create_post_table(self):
         """
@@ -634,3 +642,98 @@ class SQLAStorage(Storage):
                     self._metadata.tables[user_posts_table_name]
                 self._logger.debug("Reflecting to table with table name %s" %
                                    user_posts_table_name)
+
+    def _create_user_table(self):
+        """
+        Creates the table to store association info between user and blog
+        posts.
+        :return:
+        """
+        with self._engine.begin() as conn:
+            user_table_name = self._table_name("users")
+            if not conn.dialect.has_table(conn, user_table_name):
+                post_id_key = self._table_name("post") + ".id"
+                self._users_table = sqla.Table(
+                    user_table_name, self._metadata,
+                    sqla.Column("user_id", sqla.String(20), primary_key=True),
+                    sqla.Column("email", sqla.String(120), unique=True, nullable=False),
+                    sqla.Column("image_file", sqla.String(20), nullable=True, default='default.jpg'),
+                    sqla.Column("password", sqla.String(60), nullable=False),
+                    sqla.UniqueConstraint('user_id', 'email', name='uix_3'),
+                    info=self._info
+                )
+                self._logger.debug("Created table with table name %s" %
+                                   user_table_name)
+            else:
+                self._users_table = \
+                    self._metadata.tables[user_table_name]
+                self._logger.debug("Reflecting to table with table name %s" %
+                                   user_table_name)
+
+    def regiter_user(self, user_id, email, password):
+        """
+        :return: The user_id value, in case of a successful insert or update.
+         Return ``None`` if there were errors.
+        """
+
+        user_id_ = user_id
+        with self._engine.begin() as conn:
+            try:
+                if user_id is not None:  # validate post_id
+                    exists_statement = sqla.select([self._users_table]).where(
+                        self._users_table.c.user_id == user_id)
+                    exists_name = \
+                        conn.execute(exists_statement).fetchone() is not None
+                    user_id = user_id if exists_name else None
+
+                register_statement = \
+                    self._users_table.insert() if user_id is None else \
+                    self._users_table.update().where(
+                        self._users_table.c.id == user_id)
+                register_statement = register_statement.values(
+                    user_id=user_id_, email=email, password=password
+                )
+
+                register_result = conn.execute(register_statement)
+                user_id = register_result.inserted_primary_key[0] \
+
+            except Exception as e:
+                self._logger.exception(str(e))
+                user_id = None
+
+        return user_id
+
+
+    def user(self, email):
+
+        with self._engine.begin() as conn:
+            exists_statement = sqla.select([self._users_table]).where(
+                self._users_table.c.email == email)
+            exists_user = \
+             conn.execute(exists_statement).fetchone()
+        print(exists_user['user_id'])
+        return exists_user
+
+
+
+    def validate_username(self, username):
+
+        with self._engine.begin() as conn:
+            exists_statement = sqla.select([self._users_table]).where(
+                self._users_table.c.user_id == username)
+            exists_user = \
+                conn.execute(exists_statement).fetchone()
+            exists = (exists_user.user_id == username)
+        return exists
+
+
+    def validate_email(self, email):
+        with self._engine.begin() as conn:
+            exists_statement = sqla.select([self._users_table]).where(
+                self._users_table.c.email == email)
+            exists_user = \
+                conn.execute(exists_statement).fetchone()
+            exists = (exists_user.user_id == email)
+        return exists
+
+

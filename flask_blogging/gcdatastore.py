@@ -193,3 +193,4 @@ class GoogleCloudDatastore(Storage):
             return True
         else:
             return False
+
