@@ -97,10 +97,15 @@ def register():
     form = RegistrationForm()
     if form.validate_on_submit():
         print(form.username.data)
-        hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
-        user = sql_storage.regiter_user(form.username.data, form.email.data, hashed_password)
-        flash(f'Account created for {form.username.data}!', 'success')
-        return redirect(url_for('login'))
+        if sql_storage.validate_username(form.username.data):
+            flash('Username already in use.','danger')
+        elif sql_storage.validate_email(form.email.data):
+            flash('Email already registered.', 'danger')
+        else:
+            hashed_password = bcrypt.generate_password_hash(form.password.data).decode('utf-8')
+            user = sql_storage.regiter_user(form.username.data, form.email.data, hashed_password)
+            flash(f'Account created for {form.username.data}!', 'success')
+            return redirect(url_for('login'))
 
     return render_template('register.html', title='Register', form=form)
 

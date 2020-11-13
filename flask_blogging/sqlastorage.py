@@ -719,21 +719,28 @@ class SQLAStorage(Storage):
     def validate_username(self, username):
 
         with self._engine.begin() as conn:
-            exists_statement = sqla.select([self._users_table]).where(
-                self._users_table.c.user_id == username)
-            exists_user = \
-                conn.execute(exists_statement).fetchone()
-            exists = (exists_user.user_id == username)
+            try:
+                exists_statement = sqla.select([self._users_table]).where(
+                    self._users_table.c.user_id == username)
+                exists_user = \
+                    conn.execute(exists_statement).fetchone()
+                exists = (exists_user.user_id == username)
+            except Exception as e:
+                self._logger.exception(str(e))
+                exists = False
         return exists
-
 
     def validate_email(self, email):
         with self._engine.begin() as conn:
-            exists_statement = sqla.select([self._users_table]).where(
-                self._users_table.c.email == email)
-            exists_user = \
-                conn.execute(exists_statement).fetchone()
-            exists = (exists_user.user_id == email)
+            try:
+                exists_statement = sqla.select([self._users_table]).where(
+                    self._users_table.c.email == email)
+                exists_user = \
+                    conn.execute(exists_statement).fetchone()
+                exists = (exists_user.email == email)
+            except Exception as e:
+                self._logger.exception(str(e))
+                exists = False
         return exists
 
 
