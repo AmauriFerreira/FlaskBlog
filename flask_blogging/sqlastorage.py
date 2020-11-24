@@ -13,10 +13,10 @@ from .signals import sqla_initialized
 from flask_login import LoginManager, UserMixin, login_user
 
 
-
 this = sys.modules[__name__]
 this.Post = None
 this.Tag = None
+this.Users = None
 
 
 def _as_int(s):
@@ -72,7 +72,7 @@ class SQLAStorage(Storage):
         self._create_all_tables()
 
         # automap base and restrict to the required tables here.
-        table_suffix = ['post', 'tag', 'user_posts', 'tag_posts', 'users']
+        table_suffix = ['post', 'tag', 'user_posts', 'tag_posts', 'users','roles']
         table_names = [self._table_name(t) for t in table_suffix]
         self._metadata.create_all(bind=self._engine, tables=self.all_tables)
         meta = sqla.MetaData()
@@ -92,6 +92,8 @@ class SQLAStorage(Storage):
         this.Post.__name__ = 'Post'
         this.Tag = getattr(self._Base.classes, self._table_name("tag"))
         this.Tag.__name__ = 'Tag'
+        this.Users= getattr(self._Base.classes, self._table_name("users"))
+        this.Users.__name__ = 'Users'
 
     @property
     def metadata(self):
@@ -110,6 +112,10 @@ class SQLAStorage(Storage):
         return getattr(self._Base.classes, self._table_name("tag"))
 
     @property
+    def user_model(self):
+        return getattr(self._Base.classes, self._table_name("users"))
+
+    @property
     def tag_table(self):
         return self._tag_table
 
@@ -126,9 +132,13 @@ class SQLAStorage(Storage):
         return self._users_table
 
     @property
+    def roles_table(self):
+        return self._roles_table
+
+    @property
     def all_tables(self):
         return [self._post_table, self._tag_table,
-                self._user_posts_table, self._tag_posts_table, self._users_table]
+                self._user_posts_table, self._tag_posts_table, self._users_table,self._roles_table]
 
     @property
     def engine(self):
@@ -530,6 +540,7 @@ class SQLAStorage(Storage):
         self._create_tag_posts_table()
         self._create_user_posts_table()
         self._create_user_table()
+        self._create_roles_table()
 
     def _create_post_table(self):
         """
@@ -669,6 +680,32 @@ class SQLAStorage(Storage):
                     self._metadata.tables[user_table_name]
                 self._logger.debug("Reflecting to table with table name %s" %
                                    user_table_name)
+############################################################################################
+    def _create_roles_table(self):
+        """
+        Creates the table to store  role
+        :return:
+        """
+        with self._engine.begin() as conn:
+            roles_table_name = self._table_name("roles")
+            if not conn.dialect.has_table(conn, roles_table_name):
+                self._roles_table = sqla.Table(
+                    roles_table_name, self._metadata,
+                    sqla.Column("id", sqla.Integer, primary_key=True),
+                    sqla.Column("name_role", sqla.String(64), unique=True),
+                    sqla.Column("default", sqla.Boolean, default=False, index=True),
+                    sqla.Column("permissions", sqla.Integer),
+
+                )
+                self._logger.debug("Created table with table name %s" %
+                                   roles_table_name)
+            else:
+                self._roles_table = \
+                    self._metadata.tables[roles_table_name]
+                self._logger.debug("Reflecting to table with table name %s" %
+                                   roles_table_name)
+
+########################################################################################
 
     def regiter_user(self, user_id, email, password):
         """
@@ -742,5 +779,32 @@ class SQLAStorage(Storage):
                 self._logger.exception(str(e))
                 exists = False
         return exists
+
+
+####################ADMIN##########################################
+
+class Permission:
+    FOLLOW = 1
+    COMMENT = 2
+    WRITE = 4
+    MODERATE = 8
+    ADMIN = 16
+
+    @staticmethod
+    def insert_roles():
+        roles = {
+            'User': [Permission.FOLLOW, Permission.COMMENT, Permission.WRITE],
+            'Moderator': [Permission.FOLLOW, Permission.COMMENT,
+                          Permission.WRITE, Permission.MODERATE],
+            'Administrator': [Permission.FOLLOW, Permission.COMMENT,
+                              Permission.WRITE, Permission.MODERATE,
+                              Permission.ADMIN],
+        }
+
+
+##########################################################################################
+
+
+
 
 
