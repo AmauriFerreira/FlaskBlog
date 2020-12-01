@@ -10,7 +10,7 @@ from sqlalchemy.ext.automap import automap_base
 import datetime
 from .storage import Storage
 from .signals import sqla_initialized
-from flask_login import LoginManager, UserMixin, login_user
+
 
 
 this = sys.modules[__name__]
@@ -72,7 +72,7 @@ class SQLAStorage(Storage):
         self._create_all_tables()
 
         # automap base and restrict to the required tables here.
-        table_suffix = ['post', 'tag', 'user_posts', 'tag_posts', 'users','roles']
+        table_suffix = ['post', 'tag', 'user_posts', 'tag_posts', 'users','roles','user_roles']
         table_names = [self._table_name(t) for t in table_suffix]
         self._metadata.create_all(bind=self._engine, tables=self.all_tables)
         meta = sqla.MetaData()
@@ -94,6 +94,13 @@ class SQLAStorage(Storage):
         this.Tag.__name__ = 'Tag'
         this.Users= getattr(self._Base.classes, self._table_name("users"))
         this.Users.__name__ = 'Users'
+
+
+
+    @property
+    def admin(self):
+        return self._admin
+
 
     @property
     def metadata(self):
@@ -136,9 +143,13 @@ class SQLAStorage(Storage):
         return self._roles_table
 
     @property
+    def user_roles_table(self):
+        return self._user_roles_table
+
+    @property
     def all_tables(self):
-        return [self._post_table, self._tag_table,
-                self._user_posts_table, self._tag_posts_table, self._users_table,self._roles_table]
+        return [self._post_table ,self._tag_table, self._user_posts_table, self._tag_posts_table, self._users_table,
+                self._roles_table, self._user_roles_table]
 
     @property
     def engine(self):
@@ -541,6 +552,7 @@ class SQLAStorage(Storage):
         self._create_user_posts_table()
         self._create_user_table()
         self._create_roles_table()
+        self._create_user_roles_table()
 
     def _create_post_table(self):
         """
@@ -667,9 +679,11 @@ class SQLAStorage(Storage):
                 self._users_table = sqla.Table(
                     user_table_name, self._metadata,
                     sqla.Column("user_id", sqla.String(20), primary_key=True),
+                    sqla.Column("name", sqla.String(80)),
                     sqla.Column("email", sqla.String(120), unique=True, nullable=False),
                     sqla.Column("image_file", sqla.String(20), nullable=True, default='default.jpg'),
                     sqla.Column("password", sqla.String(60), nullable=False),
+                    sqla.Column("role", sqla.String(5)),
                     sqla.UniqueConstraint('user_id', 'email', name='uix_3'),
                     info=self._info
                 )
@@ -691,10 +705,9 @@ class SQLAStorage(Storage):
             if not conn.dialect.has_table(conn, roles_table_name):
                 self._roles_table = sqla.Table(
                     roles_table_name, self._metadata,
-                    sqla.Column("id", sqla.Integer, primary_key=True),
-                    sqla.Column("name_role", sqla.String(64), unique=True),
-                    sqla.Column("default", sqla.Boolean, default=False, index=True),
-                    sqla.Column("permissions", sqla.Integer),
+                    sqla.Column("id", sqla.String(20), primary_key=True),
+                    sqla.Column("name", sqla.String(50), unique=True),
+
 
                 )
                 self._logger.debug("Created table with table name %s" %
@@ -705,14 +718,47 @@ class SQLAStorage(Storage):
                 self._logger.debug("Reflecting to table with table name %s" %
                                    roles_table_name)
 
+############################################################################################
+    def _create_user_roles_table(self):
+        """
+        Creates the table to store  role
+        :return:
+        """
+        with self._engine.begin() as conn:
+            user_roles_table_name = self._table_name("user_roles")
+
+            user_id_key = self._table_name("users") + ".user_id"
+            roles_id_key = self._table_name("roles") + ".id"
+            if not conn.dialect.has_table(conn, user_roles_table_name):
+                self._user_roles_table = sqla.Table(
+                    user_roles_table_name, self._metadata,
+                    sqla.Column("id", sqla.Integer, primary_key=True),
+                    sqla.Column('user_id', sqla.String(20), sqla.ForeignKey
+                    (user_id_key, onupdate="CASCADE",ondelete="CASCADE"),
+                                index=True),
+                    sqla.Column('role_id', sqla.Integer, sqla.ForeignKey
+                    (roles_id_key, onupdate="CASCADE", ondelete="CASCADE"),
+                                index=True)
+
+
+                )
+
+
+                self._logger.debug("Created table with table name %s" %
+                                   user_roles_table_name)
+            else:
+                self._user_roles_table = \
+                    self._metadata.tables[user_roles_table_name]
+                self._logger.debug("Reflecting to table with table name %s" %
+                                   user_roles_table_name)
+
 ########################################################################################
 
-    def regiter_user(self, user_id, email, password):
+    def regiter_user(self, user_id,email, password):
         """
         :return: The user_id value, in case of a successful insert or update.
          Return ``None`` if there were errors.
         """
-
         user_id_ = user_id
         with self._engine.begin() as conn:
             try:
@@ -728,7 +774,7 @@ class SQLAStorage(Storage):
                     self._users_table.update().where(
                         self._users_table.c.id == user_id)
                 register_statement = register_statement.values(
-                    user_id=user_id_, email=email, password=password
+                    user_id=user_id_,name=user_id, email=email, password=password
                 )
 
                 register_result = conn.execute(register_statement)
@@ -749,9 +795,14 @@ class SQLAStorage(Storage):
             exists_user = \
              conn.execute(exists_statement).fetchone()
         print(exists_user['user_id'])
+
+        if (exists_user['role'])=='admin':
+            self.admin=True
+
         return exists_user
 
-
+    def is_admin(self):
+        return self.admin
 
     def validate_username(self, username):
 
@@ -783,26 +834,7 @@ class SQLAStorage(Storage):
 
 ####################ADMIN##########################################
 
-class Permission:
-    FOLLOW = 1
-    COMMENT = 2
-    WRITE = 4
-    MODERATE = 8
-    ADMIN = 16
 
-    @staticmethod
-    def insert_roles():
-        roles = {
-            'User': [Permission.FOLLOW, Permission.COMMENT, Permission.WRITE],
-            'Moderator': [Permission.FOLLOW, Permission.COMMENT,
-                          Permission.WRITE, Permission.MODERATE],
-            'Administrator': [Permission.FOLLOW, Permission.COMMENT,
-                              Permission.WRITE, Permission.MODERATE,
-                              Permission.ADMIN],
-        }
-
-
-##########################################################################################
 
 
 

@@ -4,6 +4,8 @@ from .sqlastorage import SQLAStorage
 from .storage import Storage
 
 
+
+
 """
 Flask-Blogging is a Flask extension to add blog support to your
 web application. This extension uses Markdown to store and then
