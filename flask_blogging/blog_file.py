@@ -22,14 +22,14 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'ffb8d3c4534343110e9479fc06d5b929'
 app.config["BLOGGING_URL_PREFIX"] = "/blog"
 app.config["BLOGGING_DISQUS_SITENAME"] = "test"
-app.config["BLOGGING_SITEURL"] = "http://localhost:8000"
+app.config["BLOGGING_SITEURL"] = "http://Blogflask-env.eba-pdyg36za.us-east-2.elasticbeanstalk.com"
 app.config["BLOGGING_SITENAME"] = "/My Site"
 app.config["BLOGGING_KEYWORDS"] = ["blog", "meta", "keywords"]
 app.config["FILEUPLOAD_IMG_FOLDER"] = "fileupload"
 app.config["FILEUPLOAD_PREFIX"] = "/fileupload"
 app.config["FILEUPLOAD_ALLOWED_EXTENSIONS"] = ["png", "jpg", "jpeg", "gif"]
 
-app.config['SQLALCHEMY_DATABASE_URI'] = "postgres+psycopg2://postgres:" + "12345" + "@localhost/Blog";
+app.config['SQLALCHEMY_DATABASE_URI'] = "postgres+psycopg2://postgres:" + "2655e0d4397dc758acfbbbfff348ede2" + "@db-blog-flask.cj90pgpw0d5w.us-east-2.rds.amazonaws.com";
 
 app.config['MAIL_SERVER'] = 'smtp.googlemail.com'
 app.config['MAIL_PORT'] = 587
@@ -56,13 +56,15 @@ USER_EMAIL_SENDER_EMAIL = "noreply@example.com"
 
 
 # Criei uma variável pass, caso não funcione substituir na linha do engine
-passw = "12345"
+passw = "2655e0d4397dc758acfbbbfff348ede2"
 
 # extensions
 # engine = create_engine('postgresql:////tmp/blog.db')
 # engine = create_engine('sqlite:////tmp/blog.db')
 
-engine = create_engine("postgres+psycopg2://postgres:" + passw + "@localhost/Blog")
+
+
+engine = create_engine("postgres+psycopg2://postgres:" + passw + "@db-blog-flask.cj90pgpw0d5w.us-east-2.rds.amazonaws.com")
 meta = MetaData()
 sql_storage = SQLAStorage(engine, metadata=meta)
 blog_engine = BloggingEngine(app, sql_storage)
@@ -98,8 +100,8 @@ class User(db.Model,UserMixin):
 # Create customized model view class
 class MyModelView(sqla.ModelView):
 
-    def is_accessible(self):
-        return False
+    ##def is_accessible(self):
+       ## return False
 
    # def is_accessible(self):
         #return login.current_user.is_authenticated

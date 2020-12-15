@@ -736,7 +736,7 @@ class SQLAStorage(Storage):
                     sqla.Column('user_id', sqla.String(20), sqla.ForeignKey
                     (user_id_key, onupdate="CASCADE",ondelete="CASCADE"),
                                 index=True),
-                    sqla.Column('role_id', sqla.Integer, sqla.ForeignKey
+                    sqla.Column('role_id', sqla.String(20), sqla.ForeignKey
                     (roles_id_key, onupdate="CASCADE", ondelete="CASCADE"),
                                 index=True)
 
